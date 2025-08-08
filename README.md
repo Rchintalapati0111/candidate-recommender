@@ -25,14 +25,12 @@ Intelligent web app that ranks candidate resumes against a job description using
 
 ## Repo Contents
 
-.
-├── app.py # Main Streamlit/Flask app
-├── index.html # Frontend template
-├── requirements.txt # Python dependencies
-├── .env.example # Example environment variables (safe to commit)
-├── .gitignore # Git ignore rules (includes .env, venv, etc.)
-├── README.md # Project documentation
-
+1. app.py # Main Streamlit/Flask app
+2. index.html # Frontend template
+3. requirements.txt # Python dependencies
+4. .env.example # Example environment variables (safe to commit)
+5. .gitignore # Git ignore rules (includes .env, venv, etc.)
+6. README.md # Project documentation
 
 
 ---
