@@ -52,12 +52,11 @@ pip install -r requirements.txt
 
 Secrets: create .env in the project root (do not commit this):
 
-# .env (local only)
+# .env (local file)
 ```bash
 CLAUDE_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-(An example is provided at .env.example — safe to commit.)
 
 Run the server:
 ```bash
