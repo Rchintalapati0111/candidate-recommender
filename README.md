@@ -6,7 +6,7 @@ Intelligent web app that ranks candidate resumes against a job description using
 -  **AI Summaries:** 2–3 sentence justification per candidate (Claude)  
 -  **Resume Inputs:** Paste text (separate candidates with `---`) and/or upload **.txt** or **.pdf**  
 -  **Limits:** Up to **10** total candidates (text + files), shows **Top 10**  
-- **Key Security:** No keys in code; uses environment variables (`.env` locally, Render secrets in prod)
+
 
 ---
 
