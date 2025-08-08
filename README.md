@@ -25,12 +25,7 @@ Intelligent web app that ranks candidate resumes against a job description using
 
 ## Repo Contents
 
-├── app.py
-├── index.html
-├── requirements.txt
-├── .env.example # placeholder only (safe to commit)
-├── .gitignore # includes .env
-└── README.md
+├── app.py ├── index.html ├── requirements.txt ├── .env.example # placeholder only (safe to commit) ├── .gitignore # includes .env └── README.md
 
 
 
