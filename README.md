@@ -55,6 +55,8 @@ pip install -r requirements.txt
 CLAUDE_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
+Important: Please create a .env file in the project root based on .env.example.
+Replace your_api_key_here with your Claude API key.
 
 Run the server:
 ```bash
