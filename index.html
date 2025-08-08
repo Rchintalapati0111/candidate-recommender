@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TalentMatch AI - Candidate Recommendation Engine</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  :root{
+    --primary: #667eea; --secondary:#764ba2;
+    --bg:#f5f5dc; --card:#ffffff; --text:#000; --muted:#666;
+    --grad: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  .container{max-width:1200px;margin:0 auto;padding:40px 20px}
+  .header{text-align:center;margin-bottom:40px}
+  .logo{font-size:2rem;font-weight:800;color:var(--primary)}
+  .tag{color:var(--muted);margin-top:6px}
+  .card{background:rgba(255,255,255,.95);border-radius:20px;padding:28px;box-shadow:0 8px 32px rgba(31,38,135,.2);margin-bottom:24px}
+  .title{font-size:1.2rem;font-weight:700;margin-bottom:14px;display:flex;gap:10px;align-items:center}
+  .textarea{width:100%;min-height:130px;border:2px solid #e5e7eb;border-radius:12px;padding:14px;font-size:14px;resize:vertical;color:var(--text)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .upload{border:2px dashed #ddd;border-radius:16px;padding:32px;text-align:center;cursor:pointer;background:#fff}
+  .upload.dragover{border-color:var(--primary);background:#f3f6ff}
+  .file-list{margin-top:14px;max-height:200px;overflow:auto}
+  .file-item{display:flex;align-items:center;gap:10px;background:#fafafa;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  .remove{margin-left:auto;background:#ff6b6b;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer}
+  .warn{background:#fff3cd;color:#856404;border-left:4px solid #ffc107;border-radius:10px;padding:10px;margin-top:10px;font-size:.9rem}
+  .btn{width:100%;padding:16px;border:none;border-radius:12px;color:#fff;background:var(--grad);font-weight:700;font-size:1.05rem;cursor:pointer}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .loading{text-align:center;padding:28px;display:none}
+  .spinner{width:40px;height:40px;border:3px solid #eee;border-top:3px solid var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .error{background:#f8d7da;color:#721c24;border-left:4px solid #f5c6cb;border-radius:10px;padding:12px;margin:14px 0}
+  .results .cand{background:#fff;border-radius:16px;box-shadow:0 4px 14px rgba(0,0,0,.08);padding:20px;margin-bottom:14px;border-left:5px solid #667eea}
+  .cand-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .badge{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border-radius:18px;padding:6px 12px;font-weight:700}
+  .muted{color:var(--muted);font-size:.9rem}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo"><i class="fas fa-brain"></i> TalentMatch AI</div>
+      <div class="tag">Intelligent Candidate Recommendation Engine</div>
+    </div>
+
+    <div class="card">
+      <div class="title"><i class="fas fa-briefcase"></i> Job Requirements</div>
+      <textarea id="jobDescription" class="textarea" placeholder="Paste the job description here..."></textarea>
+    </div>
+
+    <div class="card">
+      <div class="title"><i class="fas fa-users"></i> Candidate Resumes</div>
+      <div class="grid">
+        <div>
+          <label style="display:block;margin-bottom:8px;font-weight:600;">Text Input (separate candidates with ---)</label>
+          <textarea id="candidatesText" class="textarea" placeholder="Example:
+Alex Chen - AI Product Engineer
+…resume text…
+---
+Sarah Rodriguez - AI Product Engineer
+…resume text…"></textarea>
+        </div>
+        <div>
+          <label style="display:block;margin-bottom:8px;font-weight:600;">
+            Candidates from text + files (max 10 total)
+          </label>
+          <div class="upload" id="uploadBox">
+            <i class="fas fa-cloud-upload-alt" style="font-size:32px;color:#777;"></i>
+            <div style="margin-top:6px">Drop files or click to upload</div>
+            <div class="muted">Supports .txt and .pdf</div>
+            <input type="file" id="fileInput" multiple accept=".txt,.pdf" style="display:none"/>
+          </div>
+          <div id="fileList" class="file-list"></div>
+          <div id="limitWarn" class="warn" style="display:none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            You can submit at most <b>10</b> candidates total (text + files).
+          </div>
+        </div>
+      </div>
+      <button class="btn" id="analyzeBtn"><i class="fas fa-search"></i> Analyze Candidates</button>
+    </div>
+
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <div>Analyzing candidates with Claude…</div>
+    </div>
+
+    <div id="results" class="results"></div>
+  </div>
+
+<script>
+  // PDF.js worker
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  // Limits
+  const MAX_TOTAL_CANDIDATES = 10;   // combined text + files
+  const TOP_N_TO_DISPLAY = 10;       // display top 10 candidates
+
+  const selectedFiles = [];
+  const uploadBox = document.getElementById('uploadBox');
+  const fileInput  = document.getElementById('fileInput');
+
+  uploadBox.addEventListener('click', () => fileInput.click());
+  uploadBox.addEventListener('dragover', e => { e.preventDefault(); uploadBox.classList.add('dragover'); });
+  uploadBox.addEventListener('dragleave', () => uploadBox.classList.remove('dragover'));
+  uploadBox.addEventListener('drop', e => {
+    e.preventDefault(); uploadBox.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  function handleFiles(files) {
+    const toAdd = Array.from(files);
+    toAdd.forEach(file => {
+      if (!/(\.pdf|\.txt)$/i.test(file.name)) return alert(`${file.name} not supported`);
+      const totalAfter = getTextCandidateCount() + selectedFiles.length + 1;
+      if (totalAfter > MAX_TOTAL_CANDIDATES) {
+        showLimitWarn(true);
+        return;
+      }
+      selectedFiles.push(file);
+    });
+    updateFileList();
+  }
+
+  function removeFile(idx){
+    selectedFiles.splice(idx,1);
+    updateFileList();
+    if(getTotalCount() <= MAX_TOTAL_CANDIDATES) showLimitWarn(false);
+  }
+
+  function updateFileList(){
+    const list = document.getElementById('fileList');
+    list.innerHTML = selectedFiles.map((f,i)=>`
+      <div class="file-item">
+        <i class="fas ${f.type==='application/pdf' ? 'fa-file-pdf' : 'fa-file-lines'}" style="color:#667eea"></i>
+        <span>${f.name}</span>
+        <span class="muted" style="margin-left:auto;margin-right:8px">${(f.size/1024).toFixed(1)} KB</span>
+        <button class="remove" onclick="removeFile(${i})"><i class="fas fa-times"></i></button>
+      </div>
+    `).join('');
+  }
+
+  function showLimitWarn(show){
+    document.getElementById('limitWarn').style.display = show ? 'block' : 'none';
+  }
+
+  function getTextCandidateCount(){
+    const txt = document.getElementById('candidatesText').value.trim();
+    if(!txt) return 0;
+    return txt.split('---').map(x=>x.trim()).filter(Boolean).length;
+  }
+  function getTotalCount(){
+    return getTextCandidateCount() + selectedFiles.length;
+  }
+
+  async function readPdfFile(file){
+    const ab = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument(ab).promise;
+    let text = '';
+    for(let i=1;i<=pdf.numPages;i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(it=>it.str).join(' ') + ' ';
+    }
+    return text;
+  }
+  function readTextFile(file){
+    return new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onload = e=>res(e.target.result);
+      r.onerror = rej;
+      r.readAsText(file);
+    });
+  }
+
+  function createEmbedding(text){
+    const words = text.toLowerCase().replace(/[^\w\s]/g,' ').split(/\s+/).filter(w=>w.length>2);
+    const bag = {};
+    for(const w of words) bag[w] = (bag[w]||0)+1;
+    return bag;
+  }
+  function cosine(a,b){
+    const vocab = new Set([...Object.keys(a),...Object.keys(b)]);
+    let dot=0,n1=0,n2=0;
+    vocab.forEach(w=>{ const x=a[w]||0, y=b[w]||0; dot+=x*y; n1+=x*x; n2+=y*y; });
+    return (n1===0||n2===0) ? 0 : dot/(Math.sqrt(n1)*Math.sqrt(n2));
+  }
+
+  async function generateAISummary(jobDesc, resume, similarity, name){
+    try{
+      const r = await fetch('/analyze',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ jobDesc, resume, similarity, candidateName:name })
+      });
+      if(!r.ok) throw new Error(`Server ${r.status}`);
+      const data = await r.json();
+      if(!data.success) throw new Error(data.error || 'Unknown error');
+      return data.summary;
+    }catch(e){
+      return `${name} shows a ${Math.round(similarity*100)}% match. Their skills and experience align with key requirements.`;
+    }
+  }
+
+  document.getElementById('analyzeBtn').addEventListener('click', analyzeResumes);
+
+  async function analyzeResumes(){
+    const jobDesc = document.getElementById('jobDescription').value.trim();
+    const candidatesText = document.getElementById('candidatesText').value.trim();
+
+    if(!jobDesc) return showError('Please enter a job description.');
+    const textCandidates = candidatesText
+      ? candidatesText.split('---').map((t,i)=>{
+          const lines = t.trim().split('\n');
+          const name = (lines[0]||`Candidate ${i+1}`).trim();
+          return { name, resume:t.trim(), source:'text' };
+        }).filter(c=>c.resume)
+      : [];
+
+    const total = textCandidates.length + selectedFiles.length;
+    if(total === 0) return showError('Please add candidates via text or files.');
+    if(total > MAX_TOTAL_CANDIDATES){
+      showLimitWarn(true);
+      return showError(`You provided ${total} candidates (max ${MAX_TOTAL_CANDIDATES}). Remove some.`);
+    }
+
+    showLoading(true);
+    document.getElementById('results').innerHTML = '';
+
+    try{
+      const fileCandidates = [];
+      for(const f of selectedFiles){
+        const resume = f.type==='application/pdf' ? await readPdfFile(f) : await readTextFile(f);
+        fileCandidates.push({ name:f.name.replace(/\.(pdf|txt)$/i,''), resume, source:'file' });
+      }
+
+      let candidates = [...textCandidates, ...fileCandidates];
+      if(candidates.length > MAX_TOTAL_CANDIDATES){
+        candidates = candidates.slice(0, MAX_TOTAL_CANDIDATES);
+      }
+
+      const jobEmb = createEmbedding(jobDesc);
+      const scored = await Promise.all(candidates.map(async c=>{
+        const sim = cosine(jobEmb, createEmbedding(c.resume));
+        const summary = await generateAISummary(jobDesc, c.resume, sim, c.name);
+        return {...c, similarity:sim, summary};
+      }));
+
+      scored.sort((a,b)=>b.similarity - a.similarity);
+      const top = scored.slice(0, TOP_N_TO_DISPLAY);
+      displayResults(top);
+    }catch(e){
+      showError(`Analysis failed: ${e.message || e}`);
+    }finally{
+      showLoading(false);
+    }
+  }
+
+  function showLoading(show){
+    document.getElementById('loading').style.display = show ? 'block' : 'none';
+    document.getElementById('analyzeBtn').disabled = show;
+  }
+  function showError(msg){
+    document.getElementById('results').innerHTML = `<div class="error"><i class="fas fa-exclamation-triangle"></i> ${msg}</div>`;
+  }
+
+  function displayResults(cands){
+    const html = `
+      <div class="card">
+        <div class="title"><i class="fas fa-trophy"></i> Top ${cands.length} Recommended Candidates</div>
+        ${cands.map((c,i)=>{
+          const pct = Math.round(c.similarity*100);
+          return `
+            <div class="cand">
+              <div class="cand-head">
+                <div>
+                  <div style="font-weight:800">${i+1}. ${c.name}</div>
+                  <div class="muted">Source: ${c.source}</div>
+                </div>
+                <div class="badge">${pct}% Match</div>
+              </div>
+              <div>${c.summary}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+    document.getElementById('results').innerHTML = html;
+  }
+</script>
+</body>
+</html>
